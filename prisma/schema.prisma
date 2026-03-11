@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ==================== USUARIOS Y AUTENTICACIÓN ====================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  nombre    String
+  apellidos String
+  role      String   @default("alumno") // "admin", "docente", "alumno"
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones como docente
+  materias       Materia[]
+  gruposDocente  Grupo[]
+
+  // Relaciones como alumno
+  inscripciones  Inscripcion[]
+  miembroEquipo  MiembroEquipo[]
+  registrosDiarios RegistroDiarioAlumno[]
+  autoevaluaciones Autoevaluacion[]
+  coevaluacionesDadas    Coevaluacion[] @relation("evaluador")
+  coevaluacionesRecibidas Coevaluacion[] @relation("evaluado")
+  heteroevaluaciones     Heteroevaluacion[]
+  calificacionesFinales  CalificacionFinal[]
+}
+
+// ==================== ESTRUCTURA ACADÉMICA ====================
+
+model Materia {
+  id          String   @id @default(cuid())
+  nombre      String
+  horasSemana Int      @default(5)
+  descripcion String?
+  docenteId   String
+  createdAt   DateTime @default(now())
+
+  docente     User     @relation(fields: [docenteId], references: [id])
+  grupos      Grupo[]
+}
+
+model Grupo {
+  id          String   @id @default(cuid())
+  nombre      String   // Ej: "3A", "5B"
+  periodo     String   // Ej: "2025-1", "Ago-Dic 2025"
+  activo      Boolean  @default(true)
+  materiaId   String
+  docenteId   String
+  createdAt   DateTime @default(now())
+
+  materia       Materia        @relation(fields: [materiaId], references: [id])
+  docente       User           @relation(fields: [docenteId], references: [id])
+  inscripciones Inscripcion[]
+  equipos       Equipo[]
+  unidades      Unidad[]
+}
+
+model Inscripcion {
+  id       String @id @default(cuid())
+  alumnoId String
+  grupoId  String
+
+  alumno User  @relation(fields: [alumnoId], references: [id])
+  grupo  Grupo @relation(fields: [grupoId], references: [id])
+
+  @@unique([alumnoId, grupoId])
+}
+
+// ==================== EQUIPOS ====================
+
+model Equipo {
+  id       String @id @default(cuid())
+  nombre   String
+  grupoId  String
+
+  grupo    Grupo           @relation(fields: [grupoId], references: [id])
+  miembros MiembroEquipo[]
+}
+
+model MiembroEquipo {
+  id        String  @id @default(cuid())
+  alumnoId  String
+  equipoId  String
+  esJefe    Boolean @default(false)
+
+  alumno  User   @relation(fields: [alumnoId], references: [id])
+  equipo  Equipo @relation(fields: [equipoId], references: [id])
+
+  @@unique([alumnoId, equipoId])
+}
+
+// ==================== UNIDADES Y CRITERIOS ====================
+
+model Unidad {
+  id         String @id @default(cuid())
+  nombre     String // Ej: "Unidad 1", "Parcial 1"
+  numero     Int
+  grupoId    String
+  activa     Boolean @default(true)
+
+  grupo      Grupo    @relation(fields: [grupoId], references: [id])
+  criterios  CriterioEvaluacion[]
+  actividades Actividad[]
+  calificacionesFinales CalificacionFinal[]
+}
+
+model CriterioEvaluacion {
+  id         String @id @default(cuid())
+  nombre     String // "Actitudinal", "Desempeño", "Heteroevaluación", "Evidencias"
+  porcentaje Float  // 0-100
+  unidadId   String
+
+  unidad     Unidad @relation(fields: [unidadId], references: [id])
+}
+
+// ==================== ACTIVIDADES Y REGISTRO DIARIO ====================
+
+model Actividad {
+  id          String   @id @default(cuid())
+  nombre      String
+  tipo        String   // "tarea", "practica", "examen", "proyecto", "participacion", "ejercicio"
+  fecha       DateTime
+  descripcion String?
+  valorMax    Float    @default(10)
+  unidadId    String
+  createdAt   DateTime @default(now())
+
+  unidad      Unidad   @relation(fields: [unidadId], references: [id])
+  registros   RegistroDiarioAlumno[]
+}
+
+model RegistroDiarioAlumno {
+  id           String   @id @default(cuid())
+  fecha        DateTime
+  alumnoId     String
+  actividadId  String
+  asistencia   Boolean  @default(true)
+  participacion Boolean @default(false)
+  calificacion Float?   // Calificación de la actividad
+  observaciones String?
+  createdAt    DateTime @default(now())
+
+  alumno    User      @relation(fields: [alumnoId], references: [id])
+  actividad Actividad @relation(fields: [actividadId], references: [id])
+
+  @@unique([alumnoId, actividadId])
+}
+
+// ==================== EVALUACIONES ====================
+
+model Autoevaluacion {
+  id        String   @id @default(cuid())
+  alumnoId  String
+  unidadId  String
+  puntaje   Float    // 0-10
+  reflexion String?
+  createdAt DateTime @default(now())
+
+  alumno  User   @relation(fields: [alumnoId], references: [id])
+
+  @@unique([alumnoId, unidadId])
+}
+
+model Coevaluacion {
+  id           String   @id @default(cuid())
+  evaluadorId  String
+  evaluadoId   String
+  unidadId     String
+  puntaje      Float    // 0-10
+  comentario   String?
+  createdAt    DateTime @default(now())
+
+  evaluador User @relation("evaluador", fields: [evaluadorId], references: [id])
+  evaluado  User @relation("evaluado", fields: [evaluadoId], references: [id])
+
+  @@unique([evaluadorId, evaluadoId, unidadId])
+}
+
+model Heteroevaluacion {
+  id        String   @id @default(cuid())
+  alumnoId  String
+  unidadId  String
+  puntaje   Float    // 0-10
+  tipo      String   // "examen", "rubrica", "lista_cotejo", "guia_observacion"
+  createdAt DateTime @default(now())
+
+  alumno User @relation(fields: [alumnoId], references: [id])
+
+  @@unique([alumnoId, unidadId, tipo])
+}
+
+// ==================== CALIFICACIÓN FINAL ====================
+
+model CalificacionFinal {
+  id                  String   @id @default(cuid())
+  alumnoId            String
+  unidadId            String
+  calActitudinal      Float?
+  calDesempeno        Float?
+  calHeteroevaluacion Float?
+  calEvidencias       Float?
+  calFinal            Float?
+  confirmada          Boolean  @default(false) // El alumno confirma
+  observaciones       String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  alumno  User   @relation(fields: [alumnoId], references: [id])
+  unidad  Unidad @relation(fields: [unidadId], references: [id])
+
+  @@unique([alumnoId, unidadId])
+}
