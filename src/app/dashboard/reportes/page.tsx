@@ -50,8 +50,24 @@ export default function ReportesPage() {
     setLoading(true);
     fetch(`/api/reportes/grupo/${selectedGrupo}`)
       .then((r) => r.json())
-      .then(setReporte)
-      .catch(() => {})
+      .then((data) => {
+        if (data.error) {
+          setReporte(null);
+        } else {
+          setReporte({
+            grupo: data.grupo ?? { nombre: "", periodo: "", materia: "" },
+            alumnos: data.alumnos ?? [],
+            unidades: data.unidades ?? [],
+            resumen: {
+              promedioGeneral: data.resumen?.promedioGeneral ?? 0,
+              aprobados: data.resumen?.aprobados ?? 0,
+              reprobados: data.resumen?.reprobados ?? 0,
+              totalAlumnos: data.resumen?.totalAlumnos ?? 0,
+            },
+          });
+        }
+      })
+      .catch(() => setReporte(null))
       .finally(() => setLoading(false));
   }, [selectedGrupo]);
 
