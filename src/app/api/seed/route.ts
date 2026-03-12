@@ -15,7 +15,7 @@ export async function POST() {
     // Crear docente
     const docente = await prisma.user.create({
       data: {
-        email: "docente@sece.edu",
+        email: "docente@seyce.edu",
         password: hashedPassword,
         nombre: "María",
         apellidos: "González López",
@@ -25,16 +25,16 @@ export async function POST() {
 
     // Crear alumnos
     const alumnosData = [
-      { nombre: "Carlos", apellidos: "Hernández Ruiz", email: "carlos@sece.edu" },
-      { nombre: "Ana", apellidos: "Martínez Flores", email: "ana@sece.edu" },
-      { nombre: "Luis", apellidos: "García Pérez", email: "luis@sece.edu" },
-      { nombre: "Sofía", apellidos: "López Sánchez", email: "sofia@sece.edu" },
-      { nombre: "Diego", apellidos: "Rodríguez Díaz", email: "diego@sece.edu" },
-      { nombre: "Valentina", apellidos: "Torres Ramírez", email: "valentina@sece.edu" },
-      { nombre: "Miguel", apellidos: "Jiménez Castro", email: "miguel@sece.edu" },
-      { nombre: "Fernanda", apellidos: "Morales Vargas", email: "fernanda@sece.edu" },
-      { nombre: "Andrés", apellidos: "Gutiérrez Mendoza", email: "andres@sece.edu" },
-      { nombre: "Camila", apellidos: "Ortiz Rivera", email: "camila@sece.edu" },
+      { nombre: "Carlos", apellidos: "Hernández Ruiz", email: "carlos@seyce.edu" },
+      { nombre: "Ana", apellidos: "Martínez Flores", email: "ana@seyce.edu" },
+      { nombre: "Luis", apellidos: "García Pérez", email: "luis@seyce.edu" },
+      { nombre: "Sofía", apellidos: "López Sánchez", email: "sofia@seyce.edu" },
+      { nombre: "Diego", apellidos: "Rodríguez Díaz", email: "diego@seyce.edu" },
+      { nombre: "Valentina", apellidos: "Torres Ramírez", email: "valentina@seyce.edu" },
+      { nombre: "Miguel", apellidos: "Jiménez Castro", email: "miguel@seyce.edu" },
+      { nombre: "Fernanda", apellidos: "Morales Vargas", email: "fernanda@seyce.edu" },
+      { nombre: "Andrés", apellidos: "Gutiérrez Mendoza", email: "andres@seyce.edu" },
+      { nombre: "Camila", apellidos: "Ortiz Rivera", email: "camila@seyce.edu" },
     ];
 
     const alumnos = [];

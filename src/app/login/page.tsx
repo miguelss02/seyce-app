@@ -41,7 +41,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
             <GraduationCap className="text-white" size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">SECE</h1>
+          <h1 className="text-2xl font-bold text-gray-900">SEYCE</h1>
           <p className="text-sm text-gray-500 mt-1">
             Sistema de Evaluación y Calificación en Equipo
           </p>
@@ -74,7 +74,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="usuario@sece.edu"
+                  placeholder="usuario@seyce.edu"
                   required
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow"
                 />
