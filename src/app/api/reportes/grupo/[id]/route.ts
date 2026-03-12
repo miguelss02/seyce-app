@@ -30,19 +30,13 @@ export async function GET(
                 id: true,
                 nombre: true,
                 apellidos: true,
-                email: true,
                 calificacionesFinales: {
                   where: {
                     unidad: { grupoId },
                   },
                   select: {
                     unidadId: true,
-                    calActitudinal: true,
-                    calDesempeno: true,
-                    calHeteroevaluacion: true,
-                    calEvidencias: true,
                     calFinal: true,
-                    confirmada: true,
                   },
                 },
               },
@@ -57,25 +51,57 @@ export async function GET(
       return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
     }
 
+    const unidadNombres = grupo.unidades.map((u) => u.nombre);
+
+    const alumnos = grupo.inscripciones.map((insc) => {
+      const calificaciones = grupo.unidades.map((u) => {
+        const cal = insc.alumno.calificacionesFinales.find((c) => c.unidadId === u.id);
+        return {
+          unidad: u.nombre,
+          calificacionFinal: cal?.calFinal ?? null,
+        };
+      });
+
+      const calsConNota = calificaciones.filter((c) => c.calificacionFinal !== null);
+      const promedio =
+        calsConNota.length > 0
+          ? calsConNota.reduce((sum, c) => sum + (c.calificacionFinal ?? 0), 0) / calsConNota.length
+          : null;
+
+      return {
+        alumnoId: insc.alumno.id,
+        nombre: insc.alumno.nombre,
+        apellido: insc.alumno.apellidos,
+        calificaciones,
+        promedio,
+      };
+    });
+
+    const alumnosConPromedio = alumnos.filter((a) => a.promedio !== null);
+    const promedioGeneral =
+      alumnosConPromedio.length > 0
+        ? alumnosConPromedio.reduce((sum, a) => sum + (a.promedio ?? 0), 0) / alumnosConPromedio.length
+        : 0;
+
     const reporte = {
       grupo: {
-        id: grupo.id,
         nombre: grupo.nombre,
         periodo: grupo.periodo,
         materia: grupo.materia.nombre,
       },
-      unidades: grupo.unidades,
-      alumnos: grupo.inscripciones.map((insc) => ({
-        id: insc.alumno.id,
-        nombre: insc.alumno.nombre,
-        apellidos: insc.alumno.apellidos,
-        email: insc.alumno.email,
-        calificaciones: insc.alumno.calificacionesFinales,
-      })),
+      unidades: unidadNombres,
+      alumnos,
+      resumen: {
+        totalAlumnos: alumnos.length,
+        promedioGeneral,
+        aprobados: alumnosConPromedio.filter((a) => (a.promedio ?? 0) >= 6).length,
+        reprobados: alumnosConPromedio.filter((a) => (a.promedio ?? 0) < 6).length,
+      },
     };
 
     return NextResponse.json(reporte);
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: "Error al generar reporte" }, { status: 500 });
   }
 }
