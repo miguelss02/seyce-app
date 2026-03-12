@@ -34,44 +34,62 @@ export default function ReportesPage() {
   const [selectedGrupo, setSelectedGrupo] = useState("");
   const [reporte, setReporte] = useState<ReporteData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/grupos")
-      .then((r) => r.json())
-      .then(setGrupos)
+      .then((r) => {
+        if (!r.ok) throw new Error("Error al cargar grupos");
+        return r.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setGrupos(data);
+        }
+      })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!selectedGrupo) {
       setReporte(null);
+      setError("");
       return;
     }
     setLoading(true);
+    setError("");
     fetch(`/api/reportes/grupo/${selectedGrupo}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) {
-          setReporte(null);
-        } else {
-          setReporte({
-            grupo: data.grupo ?? { nombre: "", periodo: "", materia: "" },
-            alumnos: data.alumnos ?? [],
-            unidades: data.unidades ?? [],
-            resumen: {
-              promedioGeneral: data.resumen?.promedioGeneral ?? 0,
-              aprobados: data.resumen?.aprobados ?? 0,
-              reprobados: data.resumen?.reprobados ?? 0,
-              totalAlumnos: data.resumen?.totalAlumnos ?? 0,
-            },
-          });
-        }
+      .then((r) => {
+        if (!r.ok) throw new Error("Error al cargar reporte");
+        return r.json();
       })
-      .catch(() => setReporte(null))
+      .then((data) => {
+        if (data.error || !data.grupo) {
+          setReporte(null);
+          setError(data.error || "No se pudo cargar el reporte");
+          return;
+        }
+        setReporte({
+          grupo: data.grupo,
+          alumnos: Array.isArray(data.alumnos) ? data.alumnos : [],
+          unidades: Array.isArray(data.unidades) ? data.unidades : [],
+          resumen: {
+            promedioGeneral: Number(data.resumen?.promedioGeneral) || 0,
+            aprobados: Number(data.resumen?.aprobados) || 0,
+            reprobados: Number(data.resumen?.reprobados) || 0,
+            totalAlumnos: Number(data.resumen?.totalAlumnos) || 0,
+          },
+        });
+      })
+      .catch(() => {
+        setReporte(null);
+        setError("Error de conexión al cargar el reporte");
+      })
       .finally(() => setLoading(false));
   }, [selectedGrupo]);
 
-  const formatNum = (n: number | null) => (n != null ? n.toFixed(1) : "—");
+  const formatNum = (n: number | null | undefined) =>
+    n != null && !isNaN(n) ? n.toFixed(1) : "—";
 
   return (
     <div>
@@ -104,6 +122,10 @@ export default function ReportesPage() {
         </div>
       ) : loading ? (
         <p className="text-gray-500">Cargando...</p>
+      ) : error ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <p className="text-red-500">{error}</p>
+        </div>
       ) : !reporte ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <p className="text-gray-500">No se pudo cargar el reporte</p>
@@ -132,7 +154,7 @@ export default function ReportesPage() {
                 <FileText size={16} className="text-gray-400" />
                 <span className="text-xs text-gray-500 uppercase font-medium">Promedio General</span>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{reporte.resumen.promedioGeneral.toFixed(1)}</p>
+              <p className="text-2xl font-bold text-gray-900">{formatNum(reporte.resumen.promedioGeneral)}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center gap-2 mb-1">
@@ -151,57 +173,63 @@ export default function ReportesPage() {
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
-                    Alumno
-                  </th>
-                  {reporte.unidades.map((u) => (
-                    <th
-                      key={u}
-                      className="text-center text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3"
-                    >
-                      {u}
+          {reporte.alumnos.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+              <p className="text-gray-500">No hay alumnos inscritos en este grupo</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                      Alumno
                     </th>
-                  ))}
-                  <th className="text-center text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
-                    Promedio
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {reporte.alumnos.map((a) => (
-                  <tr key={a.alumnoId} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
-                      {a.nombre} {a.apellido}
-                    </td>
-                    {reporte.unidades.map((u) => {
-                      const cal = a.calificaciones.find((c) => c.unidad === u);
-                      const val = cal?.calificacionFinal;
-                      return (
-                        <td key={u} className="px-4 py-4 text-center text-sm text-gray-700">
-                          {formatNum(val ?? null)}
-                        </td>
-                      );
-                    })}
-                    <td className="px-6 py-4 text-center">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                          (a.promedio ?? 0) >= 6
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-red-50 text-red-700"
-                        }`}
+                    {reporte.unidades.map((u) => (
+                      <th
+                        key={u}
+                        className="text-center text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3"
                       >
-                        {formatNum(a.promedio)}
-                      </span>
-                    </td>
+                        {u}
+                      </th>
+                    ))}
+                    <th className="text-center text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                      Promedio
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {reporte.alumnos.map((a) => (
+                    <tr key={a.alumnoId} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
+                        {a.nombre} {a.apellido}
+                      </td>
+                      {reporte.unidades.map((u) => {
+                        const cal = a.calificaciones?.find((c) => c.unidad === u);
+                        const val = cal?.calificacionFinal;
+                        return (
+                          <td key={u} className="px-4 py-4 text-center text-sm text-gray-700">
+                            {formatNum(val ?? null)}
+                          </td>
+                        );
+                      })}
+                      <td className="px-6 py-4 text-center">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                            (a.promedio ?? 0) >= 6
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-red-50 text-red-700"
+                          }`}
+                        >
+                          {formatNum(a.promedio)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </div>
